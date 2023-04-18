@@ -1,3 +1,4 @@
+# Sashank Tirumala - AIM Take Home Assignment
 # Police-Man Thief Problem
 Requires Python 3+ only
 ```bash
@@ -24,7 +25,9 @@ There are numerous edge cases to handle in this question. The edge cases I handl
 Also I created a few test cases to check the code.
 
 # Ball Tracking
+![Alt Text](media/ball_tracking.gif)
 ## Setup
+Requires python 3.8
 Download YOLO weights from : https://drive.google.com/file/d/1-oc-7kUV0_MDLJzanqNUG62fXyE0KSd8/view?usp=sharing and store it in `task2` folder.
 Install required packages using pip.
 
