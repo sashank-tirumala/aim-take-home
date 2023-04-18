@@ -54,7 +54,7 @@ def is_thief_seen_by_policeman(thief_pos, policeman_pos, orientation, fov):
     def is_point_in_fov(point):
         angle = calculate_angle(policeman_pos, point)
         angle_diff = abs(angle - orientation)
-        return angle_diff <= fov/2 or angle_diff >= 360 - fov/2
+        return angle_diff < fov/2 or angle_diff > 360 - fov/2
 
     corners = [(thief_pos[0] - 0.5, thief_pos[1] - 0.5),
                (thief_pos[0] - 0.5, thief_pos[1] + 0.5),

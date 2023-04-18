@@ -1,5 +1,27 @@
-# Thief Problem
+# Police-Man Thief Problem
+Requires Python 3+ only
+```bash
+cd task 1
+python code.py
+```
 
+
+## Overall Strategy
+This problem is essentially solved through 2 steps
+1. Checking if a particular cell is visible by a policeman. To do this we find the corners of the cell, and its angle with the policeman. They we check if the difference between the angle with the policeman and the policeman's original orientation is within the field of view of the policeman. If so that cell is visible to the policeman. 
+2. Finding the closest cell that is not visible to any policeman using a Breadth First Search from the thief's original position. 
+
+## Edge Cases to Handle
+There are numerous edge cases to handle in this question. The edge cases I handled in my code are:
+1. Grid in invalid format
+2. Orientations and FOV in invalid format (>360 or < 0)
+3. Multiple thiefs in the grid
+4. Multiple positions for the same policeman
+5. No policeman in grid
+6. No valid square for the thief to move to
+7. Handling contact with only edge of the cell
+
+Also I created a few test cases to check the code.
 
 # Ball Tracking
 ```bash 
