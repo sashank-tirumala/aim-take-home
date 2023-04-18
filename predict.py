@@ -50,7 +50,6 @@ class BaseEngine(object):
 
     def inference(self, img, conf=0.25):
         origin_img = img
-        origin_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2RGB)
         img, ratio = preproc(origin_img, self.imgsz, self.mean, self.std)
         num, final_boxes, final_scores, final_cls_inds = self.infer(img)
         final_boxes = np.reshape(final_boxes, (-1, 4))
@@ -60,7 +59,6 @@ class BaseEngine(object):
             idxs = final_cls_inds == 32
             final_boxes = final_boxes[idxs]
             origin_img = vis_single(origin_img, final_boxes,0)
-        origin_img = cv2.cvtColor(origin_img, cv2.COLOR_RGB2BGR)                      
         return origin_img
 
     def get_fps(self):
