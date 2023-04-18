@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import time
 import matplotlib.pyplot as plt
+import argparse
 
 class BaseEngine(object):
     """
@@ -178,18 +179,27 @@ class filter:
 
 
 if __name__ == "__main__":
-    pred = BaseEngine(engine_path='yolov7-nms-32.trt')
-    video_path = '/home/sashank/projects/personal/aim_take_home/input/ball_tracking_video.mp4'
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--engine_path", type=str, default="yolov7-nms-32.trt")
+    parser.add_argument("--video_path", type=str, default="ball_tracking_video.mp4")
+    parser.add_argument("--output_path", type=str, default="output_video.mp4")
+    parser.add_argument("--output_text_path", type=str, default="output_csv.txt")
+    args = parser.parse_args()
+    pred = BaseEngine(engine_path=args.engine_path)
+    video_path = args.video_path
     cap = cv2.VideoCapture(video_path)
-    output_path = 'output_video.mp4'
-    # Get the video dimensions and frame rate
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    # Create a VideoWriter object to write the frames to a new video file
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-
+    output_path = args.output_path
+    if output_path is not None:
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    
+    output_csv = args.output_text_path
+    if output_csv is not None:
+        with open(output_csv, "w") as f:
+            f.write("frame, x, y, w, h\n")
 
     if not cap.isOpened():
         print("Error: Could not open the video file.")
@@ -205,11 +215,7 @@ if __name__ == "__main__":
         boxes.append(box_curr)
         frames.append(frame)
     end_time = time.time()
-    print(end_time-start_time)
-    x_coords1 = []
-    y_coords1 = []
-    x_coords2 = []
-    y_coords2 = []
+    print("Time taken: ",end_time-start_time)
     filter1 = filter()
     for i in range(len(frames)):
         frame = frames[i]
@@ -217,8 +223,13 @@ if __name__ == "__main__":
         if len(box) != 0:
             box = filter1.update(box[0])
             frame = vis(frame, box)
-        out.write(frame)
-    filter1.plot()
+        if output_path is not None:
+            out.write(frame)
+        if output_csv is not None:
+            with open(output_csv, "a") as f:
+                if len(box) != 0:
+                    f.write("{}, {}, {}, {}, {}\n".format(i, (box[0]+box[2])/2, (box[1]+box[3])/2, box[2]-box[0], box[3]-box[1]))
+                
     cap.release()
-    out.release()
-    pass
+    if output_path is not None:
+        out.release()
