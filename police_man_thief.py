@@ -140,9 +140,46 @@ def main(grid, orientations, fovs):
     closest_unseen_cell = find_closest_unseen_cell(thief_pos, policemen_pos, orientations, fovs, grid)
     return seen_policemen, closest_unseen_cell
 
+
+def test_main():
+    # Test case 1: Basic scenario
+    grid1 = [
+        [0, 0, 0, 0, 0],
+        ['T', 0, 0, 0, 2],
+        [0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0]
+    ]
+    orientations1 = [180, 150]
+    fovs1 = [60, 60]
+    assert main(grid1, orientations1, fovs1) == ([2], (2, 2))
+
+    # Test case 2: No policemen
+    grid2 = [
+        [0, 0, 0, 0, 0],
+        ['T', 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0]
+    ]
+    orientations2 = []
+    fovs2 = []
+    assert main(grid2, orientations2, fovs2) == ([], (1, 0))
+
+    # Test case 3: Thief surrounded by policemen
+    grid3 = [
+        [1, 0, 2],
+        [0, 'T', 0],
+        [3, 0, 4]
+    ]
+    orientations3 = [270, 180, 90, 0]
+    fovs3 = [180, 180, 180, 180]
+    assert main(grid3, orientations3, fovs3) == ([1, 2, 3], None)
+
 if __name__ == "__main__":
 
     grid = [[0, 0, 0, 0, 0], ['T', 0, 0, 0, 2], [0, 0, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]]
     orientations = [180, 150]
     fovs = [60, 60]
+    test_main()
     print(main(grid, orientations, fovs))
