@@ -58,8 +58,7 @@ class BaseEngine(object):
             final_boxes, final_scores, final_cls_inds = final_boxes[:num]/ratio, final_scores[:num], final_cls_inds[:num]
             idxs = final_cls_inds == 32
             final_boxes = final_boxes[idxs]
-            origin_img = vis_single(origin_img, final_boxes,0)
-        return origin_img
+        return final_boxes
 
     def get_fps(self):
         # warmup
@@ -143,14 +142,21 @@ if __name__ == "__main__":
         exit()
     frames=[]
     start_time = time.time()
+    boxes = []
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-        inf = pred.inference(frame)
-        out.write(inf)
-    cap.release()
-    out.release()
+        box_curr = pred.inference(frame)
+        boxes.append(box_curr)
+        frames.append(frame)
     end_time = time.time()
     print(end_time-start_time)
+    for i in range(len(frames)):
+        frame = frames[i]
+        box = boxes[i]
+        frame = vis_single(frame, box, 0)
+        out.write(frame)
+    cap.release()
+    out.release()
     pass
