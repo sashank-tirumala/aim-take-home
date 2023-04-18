@@ -24,6 +24,15 @@ There are numerous edge cases to handle in this question. The edge cases I handl
 Also I created a few test cases to check the code.
 
 # Ball Tracking
+## Setup
+Download YOLO weights from : https://drive.google.com/file/d/1-oc-7kUV0_MDLJzanqNUG62fXyE0KSd8/view?usp=sharing and store it in `task2` folder.
+Install required packages using pip.
+
+```bash 
+pip install -r requirements.txt
+```
+
+
 ```bash 
 python predict.py
 ```
