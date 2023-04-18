@@ -128,14 +128,12 @@ class filter:
     """
     def __init__(self):
         self.center_x=[]
-        self.center_y=[]
-        self.obs_x1=[]
-        self.obs_y1=[]
-        self.obs_x2=[]
-        self.obs_y2=[]
         self.areas = []
         self.ratios = []
         self.count = 0
+        self.center_thresh = 260
+        self.area_thresh = 1000
+        self.ratio_thresh = 1.8
     
     def update(self, box):
         """
@@ -147,23 +145,18 @@ class filter:
         """
         centerx = (box[0]+box[2])/2
         if self.count:
-            if np.abs(centerx - self.center_x[-1]) > 260:
+            if np.abs(centerx - self.center_x[-1]) > self.center_thresh:
                 return []
         centery = (box[1]+box[3])/2
         area = (box[2]-box[0])*(box[3]-box[1])
-        if area < 1000:
+        if area < self.area_thresh:
             return []
         ratio = (box[3]-box[1])/(box[2]-box[0])
-        if ratio > 1.8:
+        if ratio > self.ratio_thresh:
             return []
         self.ratios.append(ratio)
         self.areas.append(area)
-        self.obs_x1.append(box[0])
-        self.obs_y1.append(box[1])
-        self.obs_x2.append(box[2])
-        self.obs_y2.append(box[3])
         self.center_x.append(centerx)
-        self.center_y.append(centery)
         self.count=1
         return box
     
