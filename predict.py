@@ -7,10 +7,11 @@ import time
 import matplotlib.pyplot as plt
 
 class BaseEngine(object):
+    """
+    Base class for TensorRT engine
+    """
     def __init__(self, engine_path, imgsz=(640,640)):
         self.imgsz = imgsz
-        self.mean = None
-        self.std = None
         logger = trt.Logger(trt.Logger.WARNING)
         trt.init_libnvinfer_plugins(logger,'')
         runtime = trt.Runtime(logger)
@@ -32,27 +33,36 @@ class BaseEngine(object):
                 self.outputs.append({'host': host_mem, 'device': device_mem})
                 
     def infer(self, img):
+        """
+        Run inference on the TensorRT engine
+        Inputs:
+            img: numpy array of shape (1, h, w, 3)
+        Outputs:
+            data: list of numpy arrays indicating the YOLO model predictions
+        """
         self.inputs[0]['host'] = np.ravel(img)
-        # transfer data to the gpu
         for inp in self.inputs:
             cuda.memcpy_htod_async(inp['device'], inp['host'], self.stream)
-        # run inference
         self.context.execute_async_v2(
             bindings=self.bindings,
             stream_handle=self.stream.handle)
-        # fetch outputs from gpu
         for out in self.outputs:
             cuda.memcpy_dtoh_async(out['host'], out['device'], self.stream)
-        # synchronize stream
         self.stream.synchronize()
-
         data = [out['host'] for out in self.outputs]
         return data
 
-    def inference(self, img, conf=0.25):
+    def inference(self, img):
+        """
+        Run inference on the TensorRT engine
+        Inputs:
+            img: numpy array of shape (1, h, w, 3)
+        Outputs:
+            final_boxes: numpy array of shape (num, 4)
+        """
         origin_img = img
         origin_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2RGB)
-        img, ratio = preproc(origin_img, self.imgsz, self.mean, self.std)
+        img, ratio = preproc(origin_img, self.imgsz)
         num, final_boxes, final_scores, final_cls_inds = self.infer(img)
         final_boxes = np.reshape(final_boxes, (-1, 4))
         num = num[0]
@@ -62,18 +72,17 @@ class BaseEngine(object):
             final_boxes = final_boxes[idxs]
         return final_boxes
 
-    def get_fps(self):
-        # warmup
-        import time
-        img = np.ones((1,3,self.imgsz[0], self.imgsz[1]))
-        img = np.ascontiguousarray(img, dtype=np.float32)
-        for _ in range(20):
-            _ = self.infer(img)
-        t1 = time.perf_counter()
-        _ = self.infer(img)
-        print(1/(time.perf_counter() - t1), 'FPS')
-
-def preproc(image, input_size, mean, std, swap=(2, 0, 1)):
+def preproc(image, input_size, swap=(2, 0, 1)):
+    """
+    Preprocess an image before TRT YOLO inferencing
+    Inputs:
+        image: numpy array of shape (h, w, 3)
+        input_size: tuple of (h, w)
+        swap: tuple of (r, g, b)
+    Outputs:
+        padded_img: numpy array of shape (input_size[0], input_size[1], 3)
+        r: ratio of original image to padded image
+    """
     if len(image.shape) == 3:
         padded_img = np.ones((input_size[0], input_size[1], 3)) * 114.0
     else:
@@ -86,44 +95,21 @@ def preproc(image, input_size, mean, std, swap=(2, 0, 1)):
         interpolation=cv2.INTER_LINEAR,
     ).astype(np.float32)
     padded_img[: int(img.shape[0] * r), : int(img.shape[1] * r)] = resized_img
-
     padded_img = padded_img[:, :, ::-1]
     padded_img /= 255.0
-    if mean is not None:
-        padded_img -= mean
-    if std is not None:
-        padded_img /= std
     padded_img = padded_img.transpose(swap)
     padded_img = np.ascontiguousarray(padded_img, dtype=np.float32)
     return padded_img, r
 
-def vis_all(img, boxes):
-    for i in range(len(boxes)):
-        box = boxes[i]
-        x0 = int(box[0])
-        y0 = int(box[1])
-        x1 = int(box[2])
-        y1 = int(box[3])
-
-        color = (np.array([0,0,1]) * 255).astype(np.uint8).tolist()
-        cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
-    return img
-
-
-def vis_single(img, boxes, idx):
-    if len(boxes) == 0:
-        return img
-    box = boxes[idx]
-    x0 = int(box[0])
-    y0 = int(box[1])
-    x1 = int(box[2])
-    y1 = int(box[3])
-
-    color = (np.array([0,0,1]) * 255).astype(np.uint8).tolist()
-    cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
-    return img
-
 def vis(img, box):
+    """
+    Visualize the bounding box on the image
+    Inputs:
+        img: numpy array of shape (h, w, 3)
+        box: numpy array of shape (4,)
+    Outputs:
+        img: numpy array of shape (h, w, 3)
+    """
     if len(box) == 0:
         return img
     x0 = int(box[0])
@@ -136,6 +122,9 @@ def vis(img, box):
     return img
 
 class filter:
+    """
+    Filter the bounding boxes
+    """
     def __init__(self):
         self.center_x=[]
         self.center_y=[]
@@ -148,6 +137,13 @@ class filter:
         self.count = 0
     
     def update(self, box):
+        """
+        Update the filter, based on area, ratio, and change of center
+        Inputs:
+            box: numpy array of shape (4,)
+        Outputs:
+            box: numpy array of shape (4,)
+        """
         centerx = (box[0]+box[2])/2
         if self.count:
             if np.abs(centerx - self.center_x[-1]) > 260:
@@ -171,9 +167,12 @@ class filter:
         return box
     
     def plot(self):
+        """
+        Plot the center, area, and ratio
+        """
         plt.plot(self.center_x)
-        # plt.plot(self.areas)
-        # plt.plot(self.ratios)
+        plt.plot(self.areas)
+        plt.plot(self.ratios)
         plt.show()
 
 
