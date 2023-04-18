@@ -4,6 +4,7 @@ import pycuda.driver as cuda
 import numpy as np
 import cv2
 import time
+import matplotlib.pyplot as plt
 
 class BaseEngine(object):
     def __init__(self, engine_path, imgsz=(640,640)):
@@ -50,6 +51,7 @@ class BaseEngine(object):
 
     def inference(self, img, conf=0.25):
         origin_img = img
+        origin_img = cv2.cvtColor(origin_img, cv2.COLOR_BGR2RGB)
         img, ratio = preproc(origin_img, self.imgsz, self.mean, self.std)
         num, final_boxes, final_scores, final_cls_inds = self.infer(img)
         final_boxes = np.reshape(final_boxes, (-1, 4))
@@ -121,10 +123,63 @@ def vis_single(img, boxes, idx):
     cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
     return img
 
+def vis(img, box):
+    if len(box) == 0:
+        return img
+    x0 = int(box[0])
+    y0 = int(box[1])
+    x1 = int(box[2])
+    y1 = int(box[3])
+
+    color = (np.array([0,0,1]) * 255).astype(np.uint8).tolist()
+    cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
+    return img
+
+class filter:
+    def __init__(self):
+        self.center_x=[]
+        self.center_y=[]
+        self.obs_x1=[]
+        self.obs_y1=[]
+        self.obs_x2=[]
+        self.obs_y2=[]
+        self.areas = []
+        self.ratios = []
+        self.count = 0
+    
+    def update(self, box):
+        centerx = (box[0]+box[2])/2
+        if self.count:
+            if np.abs(centerx - self.center_x[-1]) > 260:
+                return []
+        centery = (box[1]+box[3])/2
+        area = (box[2]-box[0])*(box[3]-box[1])
+        if area < 1000:
+            return []
+        ratio = (box[3]-box[1])/(box[2]-box[0])
+        if ratio > 1.8:
+            return []
+        self.ratios.append(ratio)
+        self.areas.append(area)
+        self.obs_x1.append(box[0])
+        self.obs_y1.append(box[1])
+        self.obs_x2.append(box[2])
+        self.obs_y2.append(box[3])
+        self.center_x.append(centerx)
+        self.center_y.append(centery)
+        self.count=1
+        return box
+    
+    def plot(self):
+        plt.plot(self.center_x)
+        # plt.plot(self.areas)
+        # plt.plot(self.ratios)
+        plt.show()
+
 
 
 if __name__ == "__main__":
-    pred = BaseEngine(engine_path='yolov7-nms.trt')
+    pred = BaseEngine(engine_path='yolov7-nms-32.trt')
     video_path = '/home/sashank/projects/personal/aim_take_home/input/ball_tracking_video.mp4'
     cap = cv2.VideoCapture(video_path)
     output_path = 'output_video.mp4'
@@ -152,11 +207,19 @@ if __name__ == "__main__":
         frames.append(frame)
     end_time = time.time()
     print(end_time-start_time)
+    x_coords1 = []
+    y_coords1 = []
+    x_coords2 = []
+    y_coords2 = []
+    filter1 = filter()
     for i in range(len(frames)):
         frame = frames[i]
         box = boxes[i]
-        frame = vis_single(frame, box, 0)
+        if len(box) != 0:
+            box = filter1.update(box[0])
+            frame = vis(frame, box)
         out.write(frame)
+    filter1.plot()
     cap.release()
     out.release()
     pass
