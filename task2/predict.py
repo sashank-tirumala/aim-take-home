@@ -1,20 +1,23 @@
-import tensorrt as trt
+import argparse
+import time
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 import pycuda.autoinit
 import pycuda.driver as cuda
-import numpy as np
-import cv2
-import time
-import matplotlib.pyplot as plt
-import argparse
+import tensorrt as trt
+
 
 class BaseEngine(object):
     """
     Base class for TensorRT engine
     """
-    def __init__(self, engine_path, imgsz=(640,640)):
+
+    def __init__(self, engine_path, imgsz=(640, 640)):
         self.imgsz = imgsz
         logger = trt.Logger(trt.Logger.WARNING)
-        trt.init_libnvinfer_plugins(logger,'')
+        trt.init_libnvinfer_plugins(logger, "")
         runtime = trt.Runtime(logger)
         with open(engine_path, "rb") as f:
             serialized_engine = f.read()
@@ -29,10 +32,10 @@ class BaseEngine(object):
             device_mem = cuda.mem_alloc(host_mem.nbytes)
             self.bindings.append(int(device_mem))
             if engine.binding_is_input(binding):
-                self.inputs.append({'host': host_mem, 'device': device_mem})
+                self.inputs.append({"host": host_mem, "device": device_mem})
             else:
-                self.outputs.append({'host': host_mem, 'device': device_mem})
-                
+                self.outputs.append({"host": host_mem, "device": device_mem})
+
     def infer(self, img):
         """
         Run inference on the TensorRT engine
@@ -41,16 +44,16 @@ class BaseEngine(object):
         Outputs:
             data: list of numpy arrays indicating the YOLO model predictions
         """
-        self.inputs[0]['host'] = np.ravel(img)
+        self.inputs[0]["host"] = np.ravel(img)
         for inp in self.inputs:
-            cuda.memcpy_htod_async(inp['device'], inp['host'], self.stream)
+            cuda.memcpy_htod_async(inp["device"], inp["host"], self.stream)
         self.context.execute_async_v2(
-            bindings=self.bindings,
-            stream_handle=self.stream.handle)
+            bindings=self.bindings, stream_handle=self.stream.handle
+        )
         for out in self.outputs:
-            cuda.memcpy_dtoh_async(out['host'], out['device'], self.stream)
+            cuda.memcpy_dtoh_async(out["host"], out["device"], self.stream)
         self.stream.synchronize()
-        data = [out['host'] for out in self.outputs]
+        data = [out["host"] for out in self.outputs]
         return data
 
     def inference(self, img):
@@ -67,11 +70,16 @@ class BaseEngine(object):
         num, final_boxes, final_scores, final_cls_inds = self.infer(img)
         final_boxes = np.reshape(final_boxes, (-1, 4))
         num = num[0]
-        if num >0:
-            final_boxes, final_scores, final_cls_inds = final_boxes[:num]/ratio, final_scores[:num], final_cls_inds[:num]
+        if num > 0:
+            final_boxes, final_scores, final_cls_inds = (
+                final_boxes[:num] / ratio,
+                final_scores[:num],
+                final_cls_inds[:num],
+            )
             idxs = final_cls_inds == 32
             final_boxes = final_boxes[idxs]
         return final_boxes
+
 
 def preproc(image, input_size, swap=(2, 0, 1)):
     """
@@ -102,6 +110,7 @@ def preproc(image, input_size, swap=(2, 0, 1)):
     padded_img = np.ascontiguousarray(padded_img, dtype=np.float32)
     return padded_img, r
 
+
 def vis(img, box):
     """
     Visualize the bounding box on the image
@@ -118,23 +127,25 @@ def vis(img, box):
     x1 = int(box[2])
     y1 = int(box[3])
 
-    color = (np.array([0,0,1]) * 255).astype(np.uint8).tolist()
+    color = (np.array([0, 0, 1]) * 255).astype(np.uint8).tolist()
     cv2.rectangle(img, (x0, y0), (x1, y1), color, 2)
     return img
+
 
 class filter:
     """
     Filter the bounding boxes
     """
+
     def __init__(self, center_thresh=260, area_thresh=1000, ratio_thresh=1.8):
-        self.center_x=[]
+        self.center_x = []
         self.areas = []
         self.ratios = []
         self.count = 0
         self.center_thresh = center_thresh
         self.area_thresh = area_thresh
         self.ratio_thresh = ratio_thresh
-    
+
     def update(self, box):
         """
         Update the filter, based on area, ratio, and change of center
@@ -143,23 +154,23 @@ class filter:
         Outputs:
             box: numpy array of shape (4,)
         """
-        centerx = (box[0]+box[2])/2
+        centerx = (box[0] + box[2]) / 2
         if self.count:
             if np.abs(centerx - self.center_x[-1]) > self.center_thresh:
                 return []
-        centery = (box[1]+box[3])/2
-        area = (box[2]-box[0])*(box[3]-box[1])
+        centery = (box[1] + box[3]) / 2
+        area = (box[2] - box[0]) * (box[3] - box[1])
         if area < self.area_thresh:
             return []
-        ratio = (box[3]-box[1])/(box[2]-box[0])
+        ratio = (box[3] - box[1]) / (box[2] - box[0])
         if ratio > self.ratio_thresh:
             return []
         self.ratios.append(ratio)
         self.areas.append(area)
         self.center_x.append(centerx)
-        self.count=1
+        self.count = 1
         return box
-    
+
     def plot(self):
         """
         Plot the center, area, and ratio
@@ -168,7 +179,6 @@ class filter:
         plt.plot(self.areas)
         plt.plot(self.ratios)
         plt.show()
-
 
 
 if __name__ == "__main__":
@@ -186,9 +196,9 @@ if __name__ == "__main__":
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = int(cap.get(cv2.CAP_PROP_FPS))
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*"XVID")
         out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-    
+
     output_csv = args.output_text_path
     if output_csv is not None:
         with open(output_csv, "w") as f:
@@ -197,7 +207,7 @@ if __name__ == "__main__":
     if not cap.isOpened():
         print("Error: Could not open the video file.")
         exit()
-    frames=[]
+    frames = []
     start_time = time.time()
     boxes = []
     while True:
@@ -208,7 +218,7 @@ if __name__ == "__main__":
         boxes.append(box_curr)
         frames.append(frame)
     end_time = time.time()
-    print("Time taken: ",end_time-start_time)
+    print("Time taken: ", end_time - start_time)
     filter1 = filter()
     for i in range(len(frames)):
         frame = frames[i]
@@ -221,8 +231,16 @@ if __name__ == "__main__":
         if output_csv is not None:
             with open(output_csv, "a") as f:
                 if len(box) != 0:
-                    f.write("{}, {}, {}, {}, {}\n".format(i, (box[0]+box[2])/2, (box[1]+box[3])/2, box[2]-box[0], box[3]-box[1]))
-                
+                    f.write(
+                        "{}, {}, {}, {}, {}\n".format(
+                            i,
+                            (box[0] + box[2]) / 2,
+                            (box[1] + box[3]) / 2,
+                            box[2] - box[0],
+                            box[3] - box[1],
+                        )
+                    )
+
     cap.release()
     if output_path is not None:
         out.release()
