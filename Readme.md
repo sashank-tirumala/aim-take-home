@@ -9,10 +9,10 @@ python code.py
 
 ## Overall Strategy
 This problem is essentially solved through 2 steps
-1. Checking if a particular cell is visible by a policeman. 
-    1. To do this we first find the corners of the cell.
-    2. We find the angle between the corners and each policeman.
-    3. We check if the angle lies within the field of view of the policeman. If it does then that cell is visible to that policeman.
+1. Checking if a particular cell is visible to a policeman. 
+    1. First, we find the corners of the cell.
+    2. Next, we find the angle between the corners and each policeman.
+    3. Check if the angle lies within the field of view of the policeman. If it does then that cell is visible to that policeman.
 2. Finding the closest cell that is not visible to any policeman is done using a Breadth First Search. We start at the thief's original position and stop at the first cell which is not visible to any policeman.  
 
 ## Edge Cases to Handle
@@ -25,7 +25,7 @@ There are numerous edge cases to handle in this question. The edge cases I handl
 6. No valid square for the thief to move to.
 7. Handling contact with only the edge of the cell.
 
-Also I created a few test cases to check the code.
+Additionally, created a few test cases to check the code.
 
 # Ball Tracking
 ![Alt Text](media/ball_tracking.gif)
