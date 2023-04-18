@@ -126,14 +126,14 @@ class filter:
     """
     Filter the bounding boxes
     """
-    def __init__(self):
+    def __init__(self, center_thresh=260, area_thresh=1000, ratio_thresh=1.8):
         self.center_x=[]
         self.areas = []
         self.ratios = []
         self.count = 0
-        self.center_thresh = 260
-        self.area_thresh = 1000
-        self.ratio_thresh = 1.8
+        self.center_thresh = center_thresh
+        self.area_thresh = area_thresh
+        self.ratio_thresh = ratio_thresh
     
     def update(self, box):
         """
